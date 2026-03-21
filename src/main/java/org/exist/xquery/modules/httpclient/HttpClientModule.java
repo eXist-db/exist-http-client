@@ -23,6 +23,7 @@ package org.exist.xquery.modules.httpclient;
 
 import org.exist.dom.QName;
 import org.exist.xquery.AbstractInternalModule;
+import org.exist.xquery.ErrorCodes;
 import org.exist.xquery.FunctionDef;
 
 import java.util.List;
@@ -46,9 +47,23 @@ public class HttpClientModule extends AbstractInternalModule {
 
     public static final String NAMESPACE_URI = "http://expath.org/ns/http-client";
     public static final String PREFIX = "http";
-    public static final String RELEASE = "1.0.0";
+    public static final String RELEASE = "0.9.0-SNAPSHOT";
 
     public static final String ERROR_NS = "http://expath.org/ns/error";
+
+    // EXPath HTTP Client error codes
+    public static final ErrorCodes.ErrorCode HC001 = new ErrorCodes.ErrorCode(
+            new QName("HC001", ERROR_NS, "err"), "An HTTP error occurred");
+    public static final ErrorCodes.ErrorCode HC002 = new ErrorCodes.ErrorCode(
+            new QName("HC002", ERROR_NS, "err"), "Error parsing entity content as XML or HTML");
+    public static final ErrorCodes.ErrorCode HC003 = new ErrorCodes.ErrorCode(
+            new QName("HC003", ERROR_NS, "err"), "Multipart override-media-type violation");
+    public static final ErrorCodes.ErrorCode HC004 = new ErrorCodes.ErrorCode(
+            new QName("HC004", ERROR_NS, "err"), "src attribute conflicts with body content");
+    public static final ErrorCodes.ErrorCode HC005 = new ErrorCodes.ErrorCode(
+            new QName("HC005", ERROR_NS, "err"), "Invalid request element structure");
+    public static final ErrorCodes.ErrorCode HC006 = new ErrorCodes.ErrorCode(
+            new QName("HC006", ERROR_NS, "err"), "Timeout waiting for response");
 
     public static final FunctionDef[] functions = functionDefs(
             functionDefs(SendRequestFunction.class,

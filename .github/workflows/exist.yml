@@ -1,0 +1,129 @@
+# This workflow builds a xar archive, deploys it into exist and runs a smoke test.
+
+name: exist-db CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+       fail-fast: false
+       matrix:
+         exist-version: [latest]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      # Build with Maven
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      # Extract exist-core JAR from Docker image for compilation,
+      # since the published 7.0.0-SNAPSHOT in the Maven repo is stale.
+      - name: Pull eXist-db image
+        run: docker pull existdb/existdb:${{ matrix.exist-version }}
+
+      - name: Install exist-core from Docker image into local Maven repo
+        run: |
+          id=$(docker create existdb/existdb:${{ matrix.exist-version }})
+          docker cp "$id:/exist/lib/exist.uber.jar" /tmp/exist.uber.jar
+          docker rm "$id"
+          mvn install:install-file -Dfile=/tmp/exist.uber.jar \
+            -DgroupId=org.exist-db -DartifactId=exist-core \
+            -Dversion=7.0.0-SNAPSHOT -Dpackaging=jar -q
+
+      - name: Build with Maven
+        run: mvn clean package -DskipTests -q
+
+      # Deploy XAR in Container
+      - name: Start eXist-db container
+        run: |
+          docker run -dit -p 8080:8080 \
+          -v ${{ github.workspace }}/target:/exist/autodeploy \
+          --name exist --rm --health-interval=1s --health-start-period=1s \
+          existdb/existdb:${{ matrix.exist-version }}
+
+      - name: Wait for eXist-db to start and deploy packages
+        timeout-minutes: 5
+        run: |
+          while ! docker logs exist | grep -q "Server has started"; \
+          do sleep 6s; \
+          done
+          sleep 5
+
+      # Smoke tests: verify module loads and key functionality works
+      # Note: The XAR module cannot override the built-in http-client in
+      # the Docker image, so these tests verify the built-in module works.
+      # The key JSON-as-string fix is validated by the Maven integration tests.
+      - name: Test http:send-request basic GET
+        run: |
+          result=$(curl -sf -u admin: -H "Content-Type: application/xml" --data '
+          <query xmlns="http://exist.sourceforge.net/NS/exist">
+            <text><![CDATA[
+              import module namespace http = "http://expath.org/ns/http-client";
+              let $r := http:send-request(
+                <http:request method="GET" href="https://httpbin.org/get"/>
+              )
+              return string($r[1]/@status)
+            ]]></text>
+          </query>' "http://localhost:8080/exist/rest/db")
+          echo "$result"
+          echo "$result" | grep -q "200" || (echo "FAIL: expected status 200" && exit 1)
+
+      - name: Test http:send-request POST with body
+        run: |
+          result=$(curl -sf -u admin: -H "Content-Type: application/xml" --data '
+          <query xmlns="http://exist.sourceforge.net/NS/exist">
+            <text><![CDATA[
+              import module namespace http = "http://expath.org/ns/http-client";
+              let $r := http:send-request(
+                <http:request method="POST" href="https://httpbin.org/post">
+                  <http:body media-type="text/plain">hello</http:body>
+                </http:request>
+              )
+              return string($r[1]/@status)
+            ]]></text>
+          </query>' "http://localhost:8080/exist/rest/db")
+          echo "$result"
+          echo "$result" | grep -q "200" || (echo "FAIL: expected status 200" && exit 1)
+
+      - name: Test http:send-request returns response headers
+        run: |
+          result=$(curl -sf -u admin: -H "Content-Type: application/xml" --data '
+          <query xmlns="http://exist.sourceforge.net/NS/exist">
+            <text><![CDATA[
+              import module namespace http = "http://expath.org/ns/http-client";
+              let $r := http:send-request(
+                <http:request method="GET" href="https://httpbin.org/get"/>
+              )
+              return count($r[1]/http:header) > 0
+            ]]></text>
+          </query>' "http://localhost:8080/exist/rest/db")
+          echo "$result"
+          echo "$result" | grep -q "true" || (echo "FAIL: expected headers" && exit 1)
+
+      - name: Test http:send-request XML response is parsed
+        run: |
+          result=$(curl -sf -u admin: -H "Content-Type: application/xml" --data '
+          <query xmlns="http://exist.sourceforge.net/NS/exist">
+            <text><![CDATA[
+              import module namespace http = "http://expath.org/ns/http-client";
+              let $r := http:send-request(
+                <http:request method="GET" href="https://httpbin.org/xml"/>
+              )
+              return count($r[2]//slide) > 0
+            ]]></text>
+          </query>' "http://localhost:8080/exist/rest/db")
+          echo "$result"
+          echo "$result" | grep -q "true" || (echo "FAIL: expected parsed XML" && exit 1)
+
+      - name: Upload XAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: exist-http-client-xar
+          path: target/exist-http-client-*.xar

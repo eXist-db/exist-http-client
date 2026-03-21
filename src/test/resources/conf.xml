@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Minimal conf.xml for running HTTP Client module tests.
      The HTTP Client module is registered here so ExistXmldbEmbeddedServer can find it. -->
-<exist xmlns="http://exist-db.org/Configuration"
-       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-       xsi:schemaLocation="http://exist-db.org/Configuration https://www.exist-db.org/configuration.xsd">
+<exist>
 
     <db-connection cacheSize="256M" collectionCache="256M" database="native"
                    files="data" pageSize="4096" nodesBuffer="-1">

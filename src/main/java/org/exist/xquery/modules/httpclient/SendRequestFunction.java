@@ -21,12 +21,21 @@
  */
 package org.exist.xquery.modules.httpclient;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.exist.xquery.BasicFunction;
 import org.exist.xquery.FunctionSignature;
 import org.exist.xquery.XPathException;
 import org.exist.xquery.XQueryContext;
+import org.exist.xquery.value.NodeValue;
 import org.exist.xquery.value.Sequence;
 import org.exist.xquery.value.Type;
+
+import java.io.IOException;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 
 import static org.exist.xquery.FunctionDSL.*;
 
@@ -39,6 +48,8 @@ import static org.exist.xquery.FunctionDSL.*;
  * @see <a href="http://expath.org/spec/http-client">EXPath HTTP Client 1.0</a>
  */
 public class SendRequestFunction extends BasicFunction {
+
+    private static final Logger logger = LogManager.getLogger(SendRequestFunction.class);
 
     private static final String FS_SEND_REQUEST_NAME = "send-request";
     private static final String FS_SEND_REQUEST_DESCRIPTION =
@@ -73,7 +84,51 @@ public class SendRequestFunction extends BasicFunction {
 
     @Override
     public Sequence eval(final Sequence[] args, final Sequence contextSequence) throws XPathException {
-        // TODO: implement
-        throw new XPathException(this, "http:send-request is not yet implemented");
+        // Extract arguments
+        final NodeValue requestNode = args[0].isEmpty() ? null : (NodeValue) args[0].itemAt(0);
+        final String hrefParam = getArgumentCount() >= 2 && !args[1].isEmpty()
+                ? args[1].getStringValue() : null;
+        final Sequence bodiesParam = getArgumentCount() >= 3 ? args[2] : Sequence.EMPTY_SEQUENCE;
+
+        // Parse request element
+        final RequestBuilder reqBuilder = new RequestBuilder();
+        reqBuilder.parse(requestNode, hrefParam, bodiesParam);
+
+        // Build HttpClient
+        final HttpClient.Builder clientBuilder = HttpClient.newBuilder();
+        if (reqBuilder.isFollowRedirect()) {
+            clientBuilder.followRedirects(HttpClient.Redirect.NORMAL);
+        } else {
+            clientBuilder.followRedirects(HttpClient.Redirect.NEVER);
+        }
+        if (reqBuilder.getTimeout() > 0) {
+            clientBuilder.connectTimeout(Duration.ofSeconds(reqBuilder.getTimeout()));
+        }
+
+        // Build HttpRequest
+        final HttpRequest httpRequest = reqBuilder.build();
+
+        // Send request
+        try (final HttpClient client = clientBuilder.build()) {
+            final HttpResponse<byte[]> response = client.send(httpRequest,
+                    HttpResponse.BodyHandlers.ofByteArray());
+
+            return ResponseHandler.buildResult(response, context, this,
+                    reqBuilder.isStatusOnly(), reqBuilder.getOverrideMediaType());
+
+        } catch (final java.net.http.HttpTimeoutException e) {
+            throw new XPathException(this, HttpClientModule.HC006,
+                    "Timeout: " + e.getMessage());
+        } catch (final java.net.ConnectException e) {
+            throw new XPathException(this, HttpClientModule.HC001,
+                    "Connection error: " + e.getMessage());
+        } catch (final IOException e) {
+            throw new XPathException(this, HttpClientModule.HC001,
+                    "HTTP error: " + e.getMessage());
+        } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new XPathException(this, HttpClientModule.HC001,
+                    "Request interrupted: " + e.getMessage());
+        }
     }
 }

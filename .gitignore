@@ -1,4 +1,5 @@
 .env
+.mvn/
 target/
 *.class
 *.jar

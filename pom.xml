@@ -13,7 +13,7 @@
 
     <groupId>org.exist-db</groupId>
     <artifactId>exist-http-client</artifactId>
-    <version>1.0.0</version>
+    <version>0.9.0-SNAPSHOT</version>
 
     <name>EXPath HTTP Client Module</name>
     <description>Native EXPath HTTP Client Module for eXist-db using java.net.http.HttpClient</description>
@@ -45,8 +45,8 @@
         <exist.version>7.0.0-SNAPSHOT</exist.version>
 
         <!-- used in the EXPath Package Descriptor -->
-        <package-name>http://exist-db.org/apps/http-client</package-name>
-        <package-abbrev>http-client</package-abbrev>
+        <package-name>http://exist-db.org/pkg/http-client</package-name>
+        <package-abbrev>exist-http-client</package-abbrev>
 
         <http-client.module.namespace>http://expath.org/ns/http-client</http-client.module.namespace>
         <http-client.module.java.classname>org.exist.xquery.modules.httpclient.HttpClientModule</http-client.module.java.classname>
@@ -67,6 +67,13 @@
         <profile>
             <id>integration-tests</id>
             <dependencies>
+                <!-- exist-core at test scope so its transitive deps (Saxon etc.) are available -->
+                <dependency>
+                    <groupId>org.exist-db</groupId>
+                    <artifactId>exist-core</artifactId>
+                    <version>${exist.version}</version>
+                    <scope>test</scope>
+                </dependency>
                 <dependency>
                     <groupId>org.exist-db</groupId>
                     <artifactId>exist-core</artifactId>
