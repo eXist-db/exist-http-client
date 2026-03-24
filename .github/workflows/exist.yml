@@ -56,35 +56,18 @@ jobs:
           done
           sleep 5
 
-      # Smoke tests: verify module loads and key functionality works
-      # Note: The XAR module cannot override the built-in http-client in
-      # the Docker image, so these tests verify the built-in module works.
-      # The key JSON-as-string fix is validated by the Maven integration tests.
-      - name: Test http:send-request basic GET
+      # Smoke tests: verify module loads and works.
+      # The bundled http-client module handles these on the Docker image;
+      # the XAR module takes over once the bundled registration is removed.
+      # Tests use eXist's own REST API (localhost) to avoid external deps.
+      - name: Test http:send-request against eXist REST API
         run: |
           result=$(curl -sf -u admin: -H "Content-Type: application/xml" --data '
           <query xmlns="http://exist.sourceforge.net/NS/exist">
             <text><![CDATA[
               import module namespace http = "http://expath.org/ns/http-client";
               let $r := http:send-request(
-                <http:request method="GET" href="https://httpbin.org/get"/>
-              )
-              return string($r[1]/@status)
-            ]]></text>
-          </query>' "http://localhost:8080/exist/rest/db")
-          echo "$result"
-          echo "$result" | grep -q "200" || (echo "FAIL: expected status 200" && exit 1)
-
-      - name: Test http:send-request POST with body
-        run: |
-          result=$(curl -sf -u admin: -H "Content-Type: application/xml" --data '
-          <query xmlns="http://exist.sourceforge.net/NS/exist">
-            <text><![CDATA[
-              import module namespace http = "http://expath.org/ns/http-client";
-              let $r := http:send-request(
-                <http:request method="POST" href="https://httpbin.org/post">
-                  <http:body media-type="text/plain">hello</http:body>
-                </http:request>
+                <http:request method="GET" href="http://localhost:8080/exist/rest/db"/>
               )
               return string($r[1]/@status)
             ]]></text>
@@ -99,7 +82,7 @@ jobs:
             <text><![CDATA[
               import module namespace http = "http://expath.org/ns/http-client";
               let $r := http:send-request(
-                <http:request method="GET" href="https://httpbin.org/get"/>
+                <http:request method="GET" href="http://localhost:8080/exist/rest/db"/>
               )
               return count($r[1]/http:header) > 0
             ]]></text>
@@ -114,9 +97,9 @@ jobs:
             <text><![CDATA[
               import module namespace http = "http://expath.org/ns/http-client";
               let $r := http:send-request(
-                <http:request method="GET" href="https://httpbin.org/xml"/>
+                <http:request method="GET" href="http://localhost:8080/exist/rest/db"/>
               )
-              return count($r[2]//slide) > 0
+              return $r[2] instance of document-node()
             ]]></text>
           </query>' "http://localhost:8080/exist/rest/db")
           echo "$result"

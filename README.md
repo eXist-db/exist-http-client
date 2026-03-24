@@ -11,10 +11,17 @@ A **drop-in replacement** for eXist-db's bundled EXPath HTTP Client. Same namesp
 
 ## Install
 
-Download the `.xar` from CI build artifacts and install with the eXist-db Package Manager or the `xst` CLI:
+From a GitHub release:
 
 ```bash
-xst package install exist-http-client-0.9.0-SNAPSHOT.xar
+xst package install https://github.com/joewiz/exist-http-client/releases/download/v0.9.0-SNAPSHOT/exist-http-client-0.9.0-SNAPSHOT.xar
+```
+
+From a local build:
+
+```bash
+mvn package -DskipTests
+xst package install target/exist-http-client-0.9.0-SNAPSHOT.xar
 ```
 
 ## Function
