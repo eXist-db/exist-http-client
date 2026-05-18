@@ -71,7 +71,7 @@ public class HttpClientModule extends AbstractInternalModule {
     );
 
     public HttpClientModule(final Map<String, List<?>> parameters) {
-        super(functions, parameters, true);
+        super(functions, parameters);
     }
 
     @Override
