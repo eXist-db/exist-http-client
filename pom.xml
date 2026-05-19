@@ -108,6 +108,13 @@
 
     <repositories>
         <repository>
+            <id>github</id>
+            <name>GitHub Packages — eXist-db</name>
+            <url>https://maven.pkg.github.com/eXist-db/exist</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>true</enabled></snapshots>
+        </repository>
+        <repository>
             <id>exist-db</id>
             <name>eXist-db Releases</name>
             <url>https://repo.exist-db.org/repository/exist-db/</url>
