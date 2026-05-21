@@ -22,23 +22,17 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
-
-      # Extract exist-core JAR from Docker image for compilation,
-      # since the published 7.0.0-SNAPSHOT in the Maven repo is stale.
-      - name: Pull eXist-db image
-        run: docker pull existdb/existdb:${{ matrix.exist-version }}
-
-      - name: Install exist-core from Docker image into local Maven repo
-        run: |
-          id=$(docker create existdb/existdb:${{ matrix.exist-version }})
-          docker cp "$id:/exist/lib/exist.uber.jar" /tmp/exist.uber.jar
-          docker rm "$id"
-          mvn install:install-file -Dfile=/tmp/exist.uber.jar \
-            -DgroupId=org.exist-db -DartifactId=exist-core \
-            -Dversion=7.0.0-SNAPSHOT -Dpackaging=jar -q
+          # Auth for GitHub Packages snapshot repository (id=github in pom.xml).
+          # exist-core SNAPSHOTs are published there from develop.
+          server-id: github
+          server-username: GITHUB_ACTOR
+          server-password: GITHUB_TOKEN
 
       - name: Build with Maven
-        run: mvn clean package -DskipTests -q
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: mvn -U clean package -DskipTests -q
 
       # Deploy XAR in Container
       - name: Start eXist-db container
